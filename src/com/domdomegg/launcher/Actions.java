@@ -13,15 +13,6 @@ final class Actions {
 
     private Actions() {}
 
-    /** Switch to an HDMI input via XGIMI's player. input is "HDMI1" or "HDMI2". */
-    static boolean switchInput(Context ctx, String input) {
-        Intent i = new Intent()
-                .setComponent(new ComponentName("com.xgimi.xhplayer", "com.xgimi.xhplayer.InputActivity"))
-                .putExtra("sw", input)
-                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-        return start(ctx, i, "Couldn't switch input");
-    }
-
     /** Open XGIMI's quick menu overlay. */
     static boolean quickMenu(Context ctx) {
         Intent i = new Intent("com.xgimi.fast.menu")

@@ -9,7 +9,7 @@ import java.util.Locale;
 
 /**
  * Invisible trampoline for deep links, e.g. from Home Assistant:
- *   projector://input/HDMI1, projector://input/HDMI2, projector://menu, projector://home
+ *   projector://input/HDMI1 (any port number), projector://menu, projector://settings, projector://home
  */
 public class DeepLinkActivity extends Activity {
     @Override
@@ -29,11 +29,12 @@ public class DeepLinkActivity extends Activity {
         List<String> seg = uri.getPathSegments();
         switch (host) {
             case "input": {
-                String in = seg.isEmpty() ? "" : seg.get(0).toUpperCase(Locale.ROOT);
-                if (in.equals("HDMI1") || in.equals("HDMI2")) {
-                    Actions.switchInput(this, in);
-                } else {
-                    Log.w(Actions.TAG, "unknown input: " + in);
+                // projector://input/HDMI1 (or just /1)
+                String in = seg.isEmpty() ? "" : seg.get(0).toUpperCase(Locale.ROOT).replace("HDMI", "");
+                try {
+                    Inputs.open(this, Integer.parseInt(in));
+                } catch (NumberFormatException e) {
+                    Log.w(Actions.TAG, "unknown input: " + seg);
                 }
                 break;
             }

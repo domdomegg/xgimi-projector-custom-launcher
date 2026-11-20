@@ -29,11 +29,10 @@ final class CardView extends FrameLayout {
     private ValueAnimator anim;
     private final Content content;
 
-    /** HDMI input card: "big numeral" style. title is e.g. "HDMI 1". */
-    static CardView hdmi(Context ctx, float s, String title) {
-        String numeral = title.substring(title.length() - 1);
-        CardView c = new CardView(ctx, s, null, numeral, null, null, null);
-        c.setContentDescription(title);
+    /** HDMI input card, "big numeral" style: label (e.g. "HDMI") bottom-left, port number on the right. */
+    static CardView hdmi(Context ctx, float s, int number, String label) {
+        CardView c = new CardView(ctx, s, null, String.valueOf(number), label, null, null);
+        c.setContentDescription("HDMI " + number);
         return c;
     }
 
@@ -155,7 +154,7 @@ final class CardView extends FrameLayout {
                 big.setTextSize(100);
                 big.getTextBounds("1", 0, 1, bounds);
                 big.setTextSize(100 * (h * 1.14f) / Math.max(1, bounds.height()));
-                // "HDMI" label: 24px, letter-spacing 0.10em.
+                // Label ("HDMI" or the input's custom name): 24px, letter-spacing 0.10em.
                 text.setTextSize(24 * s);
                 text.setLetterSpacing(0.10f);
             }
@@ -169,7 +168,8 @@ final class CardView extends FrameLayout {
             if (numeral != null) {
                 // Label first (bottom-left), numeral layered on top.
                 // CSS left 25px, bottom 19px (box bottom; the baseline sits one descent above it).
-                c.drawText("HDMI", 25 * s, h - 19 * s - text.descent(), text);
+                CharSequence l = TextUtils.ellipsize(label.toUpperCase(java.util.Locale.ROOT), text, w * 0.55f, TextUtils.TruncateAt.END);
+                c.drawText(l, 0, l.length(), 25 * s, h - 19 * s - text.descent(), text);
                 big.getTextBounds(numeral, 0, numeral.length(), bounds);
                 float glyphH = bounds.height();
                 float baseline = (h - glyphH) / 2f - bounds.top; // centre the ink vertically

@@ -64,7 +64,7 @@ public class MainActivity extends Activity {
     private boolean awake = true;
     private int swallowKey;
     private Grid row; // the app grid (HDMI cards first)
-    private CardView hdmi1, hdmi2;
+    private int inputCount; // the first inputCount cards in the grid are HDMI inputs
     private IconButton menuButton, settingsButton;
     private View lastRowFocus;
     private AlertDialog dialog;
@@ -218,8 +218,9 @@ public class MainActivity extends Activity {
         View cur = getCurrentFocus();
         boolean inUi = cur != null && cur != sink && (cur.getParent() == row || cur == menuButton || cur == settingsButton);
         if (focusHdmi1 || !inUi) {
-            hdmi1.requestFocus();
-            lastRowFocus = hdmi1;
+            View first = firstCard();
+            if (first != null) first.requestFocus();
+            lastRowFocus = first;
         }
         applyState(animate);
         scheduleSleep();
@@ -322,7 +323,7 @@ public class MainActivity extends Activity {
                 || code == KeyEvent.KEYCODE_DPAD_UP || code == KeyEvent.KEYCODE_DPAD_DOWN;
         View focused = getCurrentFocus();
         if (focused == sink && isNavKey(code)) { // shouldn't happen while awake, but be safe
-            if (action == KeyEvent.ACTION_DOWN) hdmi1.requestFocus();
+            if (action == KeyEvent.ACTION_DOWN && firstCard() != null) firstCard().requestFocus();
             return true;
         }
         if (!dpad || focused == null) return super.dispatchKeyEvent(event);
@@ -470,18 +471,18 @@ public class MainActivity extends Activity {
         glp.bottomMargin = px(80);
         root.addView(row, glp);
 
-        hdmi1 = CardView.hdmi(this, s, "HDMI 1");
-        hdmi2 = CardView.hdmi(this, s, "HDMI 2");
-        hdmi1.setOnClickListener(v -> Actions.switchInput(this, "HDMI1"));
-        hdmi2.setOnClickListener(v -> Actions.switchInput(this, "HDMI2"));
+        // HDMI inputs first, in port order.
         View.OnLongClickListener fixed = v -> {
             Actions.toast(this, "Inputs stay at the front");
             return true;
         };
-        hdmi1.setOnLongClickListener(fixed);
-        hdmi2.setOnLongClickListener(fixed);
-        row.addView(hdmi1);
-        row.addView(hdmi2);
+        for (Inputs.Input in : Inputs.hdmi(this)) {
+            CardView card = CardView.hdmi(this, s, in.number, in.label);
+            card.setOnClickListener(v -> Inputs.open(this, in));
+            card.setOnLongClickListener(fixed);
+            row.addView(card);
+        }
+        inputCount = row.getChildCount();
 
         // Invisible focus holder used while idle, so no card shows a focus ring.
         sink = new View(this);
@@ -500,11 +501,16 @@ public class MainActivity extends Activity {
         return lp;
     }
 
+    /** The first card: HDMI 1 if there are inputs, otherwise the first app. */
+    private View firstCard() {
+        return row.getChildCount() > 0 ? row.getChildAt(0) : null;
+    }
+
     /** Back down from the icons: the top-row card that was focused before (default HDMI 1). */
     private void focusRow() {
         View target = lastRowFocus != null && lastRowFocus.getParent() == row
-                && row.indexOfChild(lastRowFocus) < row.columns() ? lastRowFocus : hdmi1;
-        target.requestFocus();
+                && row.indexOfChild(lastRowFocus) < row.columns() ? lastRowFocus : firstCard();
+        if (target != null) target.requestFocus();
     }
 
     // ---------------------------------------------------------------- apps
@@ -588,7 +594,7 @@ public class MainActivity extends Activity {
             focusIndex = row.indexOfChild(focused);
         }
 
-        while (row.getChildCount() > 2) row.removeViewAt(2);
+        while (row.getChildCount() > inputCount) row.removeViewAt(inputCount);
         components.clear();
         CardView refocus = null;
         for (String k : visible) {
@@ -665,7 +671,7 @@ public class MainActivity extends Activity {
     }
 
     private CardView cardFor(String key) {
-        for (int i = 2; i < row.getChildCount(); i++) {
+        for (int i = inputCount; i < row.getChildCount(); i++) {
             CardView c = (CardView) row.getChildAt(i);
             if (key.equals(c.key)) return c;
         }
@@ -675,7 +681,8 @@ public class MainActivity extends Activity {
     private void focusKeyLater(String key) {
         row.post(() -> {
             CardView c = key == null ? null : cardFor(key);
-            (c != null ? c : hdmi1).requestFocus();
+            View target = c != null ? c : firstCard();
+            if (target != null) target.requestFocus();
         });
     }
 

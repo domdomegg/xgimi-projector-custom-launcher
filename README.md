@@ -2,24 +2,24 @@
 
 An ad-free, art-first home screen for XGIMI projectors running Android TV.
 
-![Home screen, awake: clock, glass HDMI cards and app banners over Bierstadt's Half Dome](docs/screenshots/awake.jpg)
+![Demo: idle art with the grid peeking, a key press wakes it, moving along the row and up to the settings icon, then back to idle](docs/screenshots/demo.gif)
 
 The stock Google TV launcher fills the screen with promoted shows and autoplaying trailers. This one shows a random print from your own art collection instead, with your apps in a small grid. HDMI inputs and the XGIMI quick menu are first-class buttons that actually work, unlike in most third-party launchers.
 
-It's built for the **XGIMI Horizon Pro** (model XK03H, Android TV 11). Other XGIMI models that use the same system apps will probably work too. On non-XGIMI Android TV devices everything except the HDMI cards and quick menu should work.
+It's built for and tested on the **XGIMI Horizon Pro** (model XK03H, Android TV 11). Other XGIMI models that use the same system apps will probably work too. It should also work on standard Android TV devices: HDMI inputs use the standard Android TV mechanism there (untested so far, so reports are welcome), and only the XGIMI quick menu button is XGIMI-specific.
 
 ## Features
 
 - **Gallery wall.** A new random print appears every time the home screen is shown. After 10 seconds without input it goes idle: just the art, with the top of the app grid peeking up from the bottom. Any key wakes it.
-- **HDMI inputs as cards.** HDMI 1 is focused by default. They switch inputs the same way XGIMI's own source picker does (see [how it works](#how-hdmi-switching-and-the-quick-menu-work)).
+- **HDMI inputs as cards.** The device's HDMI inputs are discovered automatically and appear first, labelled with any custom names set in Android TV settings. HDMI 1 is focused by default. On XGIMI they switch inputs the same way XGIMI's own source picker does (see [how it works](#how-hdmi-switching-and-the-quick-menu-work)).
 - **Quick menu and settings buttons** at the top right. Press Up from the top row to reach them, and Up again to go back to idle.
 - **All your apps, automatically.** Every installed TV app gets a card using its own banner. New installs appear at the end. Long-press OK on an app to move it left or right, or hide it.
 - **Deep links** for automation, e.g. a Home Assistant button that switches to HDMI 1.
-- No ads, no tracking, no network access, no dependencies. It's about 1,500 lines of plain Java and builds without Gradle.
+- No ads, no tracking, no network access, no dependencies. It's about 1,600 lines of plain Java and builds without Gradle.
 
-| Idle | Icons focused |
-|---|---|
-| ![Idle: Monet's Water Lilies with the top row of the grid peeking up](docs/screenshots/idle.jpg) | ![Settings icon focused](docs/screenshots/icons.jpg) |
+| Awake | Idle | Icons focused |
+|---|---|---|
+| ![Awake: clock, glass HDMI cards and app banners over Bierstadt's Half Dome](docs/screenshots/awake.jpg) | ![Idle: Monet's Water Lilies with the top row of the grid peeking up](docs/screenshots/idle.jpg) | ![Settings icon focused](docs/screenshots/icons.jpg) |
 
 The paintings in the screenshots (Monet's *Water Lilies*, 1907, and Bierstadt's *Half Dome, Yosemite*) are in the public domain and included in [`docs/example-art`](docs/example-art).
 
@@ -70,8 +70,7 @@ The launcher handles `projector://` links, which Home Assistant's [Android TV Re
 
 | Link | Does |
 |---|---|
-| `projector://input/HDMI1` | Switch to HDMI 1 |
-| `projector://input/HDMI2` | Switch to HDMI 2 |
+| `projector://input/HDMI1` | Switch to HDMI 1 (any port number works) |
 | `projector://menu` | Open the XGIMI quick menu |
 | `projector://settings` | Open Android settings |
 | `projector://home` | Go to the home screen |
@@ -86,7 +85,10 @@ data:
 
 ## How HDMI switching and the quick menu work
 
-On these projectors the standard Android approach to switching input (`ACTION_VIEW` on a `TvContract` passthrough URI) does nothing, because no installed app handles it. That's why the HDMI buttons in most third-party launchers don't work. XGIMI's own source picker (in `com.xgimi.misckey`) instead starts an exported activity in XGIMI's media player:
+Inputs are listed with `TvInputManager.getTvInputList()` (HDMI-type inputs only, skipping HDMI-CEC child devices and inputs hidden in settings). How the launcher switches to one depends on the device:
+
+- **Standard Android TV:** `ACTION_VIEW` on `TvContract.buildChannelUriForPassthroughInput(inputId)`, which the device's Live TV app handles.
+- **XGIMI:** that intent does nothing, because no installed app handles it. That's why the HDMI buttons in most third-party launchers don't work on these projectors. XGIMI's own source picker (in `com.xgimi.misckey`) instead starts an exported activity in XGIMI's media player, so the launcher does the same whenever that player is installed:
 
 ```sh
 adb shell am start -n com.xgimi.xhplayer/.InputActivity --es sw HDMI1
@@ -123,7 +125,8 @@ There's no Gradle and no AndroidX: `aapt2`, `javac`, `d8`, `zipalign` and `apksi
 | `ArtLoader.java` | Picks and decodes a random print off the UI thread |
 | `Grid.java` | Fixed 5-column card grid |
 | `DeepLinkActivity.java` | `projector://` links |
-| `Actions.java` | HDMI switching, quick menu, settings, home |
+| `Inputs.java` | HDMI input discovery and switching (XGIMI and standard) |
+| `Actions.java` | Quick menu, settings, home |
 
 ## Credits
 
